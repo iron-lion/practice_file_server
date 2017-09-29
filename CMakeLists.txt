@@ -1,8 +1,6 @@
-
 project(NOOB)
 
 cmake_minimum_required(VERSION 3.8)
-
 
 # prohibit in-source-builds
 IF (${CMAKE_BINARY_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
@@ -21,5 +19,5 @@ IF(NOT CMAKE_BUILD_TYPE)
     message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 ENDIF(NOT CMAKE_BUILD_TYPE)
 
-
+find_package(Threads)
 add_subdirectory(src)

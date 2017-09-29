@@ -27,8 +27,8 @@ int main(){
     /*---- Connect the socket to the server using the address struct ----*/
     addr_size = sizeof serverAddr;
 
+    connect(clientSocket, (struct sockaddr *) &serverAddr, addr_size);
     while(1){
-        connect(clientSocket, (struct sockaddr *) &serverAddr, addr_size);
         scanf("%s",send_buffer);
 
         /*---- Send the message from the user input into the send_buffer ----*/
