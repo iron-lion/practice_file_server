@@ -3,6 +3,8 @@
 #include <netinet/in.h>
 #include <string.h>
 
+
+
 int main(){
     int clientSocket;
     char recv_buffer[1024];
@@ -29,7 +31,20 @@ int main(){
 
     connect(clientSocket, (struct sockaddr *) &serverAddr, addr_size);
     while(1){
-        scanf("%s",send_buffer);
+        int action;
+        printf("[1:put, 2:get]: ");
+        scanf("%d",&action);
+        if (action == 1){
+            printf("FILE: ");
+            scanf("%9s",send_buffer);
+            /*read file*/
+        } else if (action ==2){
+            printf("FILE #: ");
+            scanf("%9s",send_buffer);
+        } else { 
+            printf("err\n");
+            continue;
+        }
 
         /*---- Send the message from the user input into the send_buffer ----*/
         send(clientSocket, send_buffer, 13,0);
@@ -44,3 +59,6 @@ int main(){
     }
     return 0;
 }
+
+
+
