@@ -1,6 +1,6 @@
 add_custom_target(client)
 
-include_directories(JOB ${tipdir}/common/job)
+include_directories(${PROJECT_SOURCE_DIR}/src/common)
 set(EXTRA_LIBS JOB)
 
 add_executable(CLA client.c)
