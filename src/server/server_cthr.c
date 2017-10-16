@@ -17,6 +17,40 @@ void printids(){
     printf("pid: %lu , tid: %lu(0x%lx)\n", (unsigned long)pid, (unsigned long)tid, (unsigned long)tid);
 }
 
+void job_get(char* recv_buffer, int savedSocket, JOB_Q* job_q){
+    printf("get");
+}
+
+void job_put(char* recv_buffer, int savedSocket, JOB_Q* job_q ){
+    int num_stripe;
+    int i;
+    memcpy(&num_stripe, recv_buffer+sizeof(char)*5,sizeof(int));
+
+    BOX* income_boxes = malloc(sizeof(BOX*)*num_stripe);
+    for (i=0;i<num_stripe;i++){
+        BOX* data_box = malloc(sizeof(BOX));
+        char* data = malloc(BOX_SIZE);
+        int box_income = recv(savedSocket, data_box, sizeof(BOX), 0);
+        int data_income = recv(savedSocket, data, data_box->data_len, 0);
+
+        if(data_income > 0){
+            data_box->data = data;
+            printf("<-- Data received from Client[%d] USER[%s] FILE[%s] -->\n%s\n<--------->\n",savedSocket, data_box->user_id, data_box->file_name, data);
+            send(savedSocket, "T", 1, 0);
+            printf("Send message to Client(%d) : %s\n", savedSocket, "T");
+            income_boxes[i] = *data_box;
+        } else {
+            send(savedSocket, "F", 1, 0);
+            printf("Send message to Client(%d) : %s\n", savedSocket, "F");
+        }
+    }
+    JOB* new_job = malloc(sizeof(JOB));
+    new_job->work = JOB_PUT;
+    new_job->pieces = num_stripe;
+    new_job->data_piece = income_boxes;
+    insert_q(job_q, (void*) new_job);
+}
+
 void* open_server(){
     int welcomeSocket, newSocket;
 
@@ -114,33 +148,16 @@ void* open_server(){
 
                 if (income >0){
                     memcpy(file_name, recv_buffer + sizeof(char)*5 + sizeof(int), 128);
-                    if( memcmp(recv_buffer,"put",3)==0 ){ /*PUT*/
-                        int num_stripe;
-                        int i;
-                        memcpy(&num_stripe, recv_buffer+sizeof(char)*5,sizeof(int));
-                        for (i=0;i<num_stripe;i++){
-                            BOX* income_box;
-                            char* data_box = malloc(sizeof(BOX));
-                            char* data = malloc(box_size);
-                            int box_income = recv(savedSocket, data_box, sizeof(BOX), 0);
-                            income_box = (BOX*)data_box;
-                            int data_income = recv(savedSocket, data, income_box->data_len, 0);
-
-                            if(data_income > 0){
-                                income_box->data = data;
-                                printf("<-- Data received from Client[%d] USER[%s] FILE[%s] -->\n%s\n<--------->\n",savedSocket, income_box->user_id, income_box->file_name, data);
-                                send(savedSocket, "T", 1, 0);
-                                printf("Send message to Client(%d) : %s\n", savedSocket, "T");
-                                insert_q(this_job_q, (void*) income_box);
-                            } else {
-                                send(savedSocket, "F", 1, 0);
-                                printf("Send message to Client(%d) : %s\n", savedSocket, "F");
-                            }
-                        }
-//                    } else if ( memcmp(recv_buffer, "get", 3)==0){
-//                        /*GET*/
+                    if( memcmp(recv_buffer,"put",3)==0 ){
+                        /*PUT*/
+                        job_put(recv_buffer, savedSocket, this_job_q);
+                    } else if ( memcmp(recv_buffer, "get", 3)==0){
+                        /*GET*/
+                        job_get(recv_buffer, savedSocket, this_job_q);
+                    } else {
+                        printf("\n<Network Error>\n");
+                        exit(0);
                     }
-//                    memset(recv_buffer, '\0', 256);
                 } else {
                     close(savedSocket);
                     printf("closed %d\n",savedSocket);

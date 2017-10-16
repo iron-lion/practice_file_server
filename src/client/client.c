@@ -13,11 +13,11 @@ void prepare_file(char* user_id, char* file_name, int clientSocket){
     int i = 0;
 
     BOX* data_box = malloc(sizeof(BOX));
-    char* data = malloc(box_size);
+    char* data = malloc(BOX_SIZE);
 
     fseek(prep_fd,0,SEEK_END);
     total_file_len = ftell(prep_fd);
-    num_stripe = total_file_len / (box_size);
+    num_stripe = total_file_len / (BOX_SIZE);
     fseek(prep_fd,0,SEEK_SET);
     /*printf("opened: %d \n", total_file_len);*/
 
@@ -27,11 +27,11 @@ void prepare_file(char* user_id, char* file_name, int clientSocket){
     send(clientSocket, put_req_buffer, 256, 0);
 
     while(i < num_stripe){
-        int data_len = box_size;
+        int data_len = BOX_SIZE;
         size_t read_len;
 
-        if (total_file_len - (i + 1) * box_size < 0)
-            data_len = total_file_len - i * box_size;
+        if (total_file_len - (i + 1) * BOX_SIZE < 0)
+            data_len = total_file_len - i * BOX_SIZE;
         if (data_len == 0)
             break;
 

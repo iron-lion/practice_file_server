@@ -1,7 +1,12 @@
 #include <stdint.h>
 #include <string.h>
 
-#define box_size 20
+#define BOX_SIZE 20
+#define JOB_PUT 1
+#define JOB_GET 2
+#define MIRROR_I "storage1/"
+#define MIRROR_II "storage2/"
+
 /*--- Linked List | Queue ---*/
 typedef struct _node{
     void* jobptr;
@@ -34,7 +39,7 @@ typedef struct box{ /*max file size 256GB*/
 
 typedef struct job{
     uint8_t work; /*put get list*/
-    uint8_t status;
+    uint8_t pieces;
 
     BOX* data_piece;
 } JOB;
