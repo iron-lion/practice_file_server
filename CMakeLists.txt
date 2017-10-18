@@ -19,5 +19,10 @@ IF(NOT CMAKE_BUILD_TYPE)
     message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 ENDIF(NOT CMAKE_BUILD_TYPE)
 
+set(PYTHON_INCLUDE_DIR /usr/include/python2.7)
+set(PYTHON_LIBRARY /usr/lib/python2.7/config-x86_64-linux-gnu/libpython2.7.so)
+
 find_package(Threads)
+find_package(PythonLibs REQUIRED)
+include_directories(${PYTHON_INCLUDE_DIRS})
 add_subdirectory(src)

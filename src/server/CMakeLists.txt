@@ -2,10 +2,15 @@ add_custom_target(server)
 
 include_directories(${PROJECT_SOURCE_DIR}/src/common)
 set(EXTRA_LIBS JOB)
+set(EXTRA_LIBS ${EXTRA_LIBS} CPYTHON)
 
 add_library(WTHR server_wthr.c)
 target_link_libraries(WTHR ${EXTRA_LIBS})
-set(EXTRA_LIBS WTHR)
+set(EXTRA_LIBS ${EXTRA_LIBS} WTHR)
+
+add_library(ITHR server_ithr.c)
+target_link_libraries(ITHR JOB)
+set(EXTRA_LIBS ${EXTRA_LIBS} ITHR)
 
 add_executable(SERV server_cthr.c)
 target_link_libraries(SERV ${CMAKE_THREAD_LIBS_INIT})

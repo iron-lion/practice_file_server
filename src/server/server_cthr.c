@@ -6,7 +6,8 @@
 #include <pthread.h>
 #include <sys/select.h>
 #include <string.h>
-#include "server_wthr.c"
+#include "server_wthr.h"
+#include "server_ithr.h"
 
 void printids(){
     pid_t       pid;
@@ -18,7 +19,11 @@ void printids(){
 }
 
 void job_get(char* recv_buffer, int savedSocket, JOB_Q* job_q){
-    printf("get");
+    JOB* new_job = malloc(sizeof(JOB));
+    new_job->work = JOB_GET;
+    new_job->pieces = 0;
+    new_job->socket_id = savedSocket;
+    insert_q(job_q, (void*) new_job);
 }
 
 void job_put(char* recv_buffer, int savedSocket, JOB_Q* job_q ){
@@ -27,33 +32,38 @@ void job_put(char* recv_buffer, int savedSocket, JOB_Q* job_q ){
     memcpy(&num_stripe, recv_buffer+sizeof(char)*5,sizeof(int));
 
     BOX* income_boxes = malloc(sizeof(BOX*)*num_stripe);
+    BOX tmp_boxes[3];
     for (i=0;i<num_stripe;i++){
         BOX* data_box = malloc(sizeof(BOX));
-        char* data = malloc(BOX_SIZE);
+        char* data = malloc(sizeof(char)*BOX_SIZE);
         int box_income = recv(savedSocket, data_box, sizeof(BOX), 0);
-        int data_income = recv(savedSocket, data, data_box->data_len, 0);
+        int data_income = recv(savedSocket, data, sizeof(char)*data_box->data_len, 0);
 
         if(data_income > 0){
             data_box->data = data;
-            printf("<-- Data received from Client[%d] USER[%s] FILE[%s] -->\n%s\n<--------->\n",savedSocket, data_box->user_id, data_box->file_name, data);
-            send(savedSocket, "T", 1, 0);
-            printf("Send message to Client(%d) : %s\n", savedSocket, "T");
-            income_boxes[i] = *data_box;
+            printf("<Data received Client[%d] USER[%s] FILE[%s]>\n%s\n.\n",savedSocket, data_box->user_id, data_box->file_name, data_box->data);
+            tmp_boxes[i] = *data_box;
         } else {
-            send(savedSocket, "F", 1, 0);
             printf("Send message to Client(%d) : %s\n", savedSocket, "F");
         }
     }
+    income_boxes = tmp_boxes;
+/*    for (i=0;i<num_stripe;i++){
+        BOX tmp_box = income_boxes[i];
+        printf("offset: %d\n",tmp_box.file_offset);
+        printf("len: %x\n",tmp_box.data_len);
+        printf("data: %s\n", tmp_box.data);
+    }*/
     JOB* new_job = malloc(sizeof(JOB));
     new_job->work = JOB_PUT;
     new_job->pieces = num_stripe;
+    new_job->socket_id = savedSocket;
     new_job->data_piece = income_boxes;
     insert_q(job_q, (void*) new_job);
 }
 
 void* open_server(){
     int welcomeSocket, newSocket;
-
     struct sockaddr_in serverAddr;
     struct sockaddr_storage serverStorage;
     socklen_t addr_size;
@@ -62,11 +72,12 @@ void* open_server(){
     struct timeval timer;
 
     pthread_t wthr;
-    int thread_err;
+    pthread_t ithr;
+    int wthread_err;
+    int ithread_err;
 
     JOB_Q* this_job_q;
-    int q_head, q_tail = 0;
-    int q_size = 100;
+    JOB_Q* this_mes_q;
 
     /*---- Create the socket. The three arguments are: ----*/
     /* 1) Internet domain 2) Stream socket 3) Default protocol (TCP in this case) */
@@ -108,10 +119,17 @@ void* open_server(){
 
     /*JOB Q create*/
     this_job_q = create_job_q();
+    this_mes_q = create_job_q();
+    this_job_q->mes_q = this_mes_q;
 
     /*- wthr create -*/
-    if (thread_err = pthread_create(&wthr, NULL, wthr_main, (void*)this_job_q) ){
+    if (wthread_err = pthread_create(&wthr, NULL, wthr_main, (void*)this_job_q) ){
         perror("w thread create error:");
+        exit(0);
+    }
+    /*- ithr create -*/
+    if (ithread_err = pthread_create(&ithr, NULL, ithr_main, (void*)this_mes_q) ){
+        perror("i thread create error:");
         exit(0);
     }
 
@@ -173,7 +191,7 @@ int main(){
     int thread_err;
     int status;
 
-    printids();
+    //printids();
     pthread_t cthr;
 
     if (thread_err = pthread_create(&cthr, NULL, open_server, NULL) ){

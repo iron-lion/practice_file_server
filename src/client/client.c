@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <string.h>
+#include "client.h"
 #include "job.h"
 
 void prepare_file(char* user_id, char* file_name, int clientSocket){
@@ -47,17 +48,17 @@ void prepare_file(char* user_id, char* file_name, int clientSocket){
         } else {
             send(clientSocket, data_box , sizeof(BOX), 0);
             send(clientSocket, data , data_len, 0);
-            recv(clientSocket, read_buffer, 1, 0);
-            printf("%s\n",read_buffer);
-            if( memcmp(read_buffer,"T",1)==0){
-                printf("[FILE: %s] offset: %d out of %d send success.\n", file_name, i, num_stripe);
-            } else if( memcmp(read_buffer,"F",1)==0){
-                printf("[FILE: %s] offset: %d out of %d send FAILED.\n", file_name, i, num_stripe);
-            } else{
-                printf("     ERROR FILE SEND\n");
-            }
-        }
+           }
         i++;
+    }
+    recv(clientSocket, read_buffer, 1, 0);
+    printf("%s\n",read_buffer);
+    if( memcmp(read_buffer,"T",1)==0){
+        printf("[FILE: %s] offset: %d out of %d send success.\n", file_name, i, num_stripe);
+    } else if( memcmp(read_buffer,"F",1)==0){
+        printf("[FILE: %s] offset: %d out of %d send FAILED.\n", file_name, i, num_stripe);
+    } else{
+        printf("     ERROR FILE SEND\n");
     }
     free(data_box);
     free(data);
