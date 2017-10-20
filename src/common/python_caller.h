@@ -1,2 +1,1 @@
-#include <Python.h>
-int call_python(char*argv[]);
+char* call_python(int argc, char*argv[]);

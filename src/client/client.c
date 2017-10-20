@@ -65,6 +65,36 @@ void prepare_file(char* user_id, char* file_name, int clientSocket){
     fclose(prep_fd);
 }
 
+void prepare_get(char* user_id, int clientSocket){
+    char get_req_buffer[32];
+    char list_buffer[BOX_SIZE * 8];
+
+    memcpy(get_req_buffer,"lst: ",5);
+    memcpy(get_req_buffer+sizeof(char)*5, user_id, 8);
+    send(clientSocket, get_req_buffer, 32, 0);
+    recv(clientSocket, list_buffer, BOX_SIZE*8,0);
+    printf("%s\n", list_buffer);
+}
+
+void request_get(char* user_id, char* file_name, int clientSocket){
+    char get_buffer[256];
+    char recv_buffer[256];
+
+    memcpy(get_buffer,"get: ",5);
+    memcpy(get_buffer+sizeof(char)*5, user_id, 8);
+    memcpy(get_buffer+sizeof(char)*(5+8), file_name, 128);
+    /* SEND USERID FILENAME */
+    send(clientSocket, get_buffer, 256, 0);
+    /* GET META INFO */
+    recv(clientSocket, recv_buffer, 256, 0 );
+
+    /* META PARSE */
+
+    /* FOR LOOP WRITING*/
+
+}
+
+
 int main(){
     int clientSocket;
     char recv_buffer[1024];
@@ -101,9 +131,12 @@ int main(){
             printf("FILE: ");
             scanf("%9s",file_name);
             prepare_file(user_id, file_name, clientSocket);
+        } else if (strcmp(action,"list")==0){
+            prepare_get(user_id, clientSocket);
         } else if (strcmp(action,"get")==0){
             printf("FILE: ");
-            scanf("%9s",send_buffer);
+            scanf("%9s",file_name);
+            request_get(user_id, file_name, clientSocket);
         } else {
             printf("      UNKNOWN ACTION... %9s\n",action);
             continue;

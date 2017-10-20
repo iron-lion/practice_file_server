@@ -78,12 +78,12 @@ void remove_job(JOB* job){
     int i;
     if(job->pieces != 0){
         for(i=0;i<job->pieces;i++){
-            printf("::: %d",i);
+//            printf("::: %d",i);
             BOX tmp_box = job->data_piece[i];
             if(tmp_box.data_len !=0 && tmp_box.data !=NULL){
-                printf(" :::");
+//                printf(" :::");
                 free(tmp_box.data);
-                printf(" :::\n");
+//                printf(" :::\n");
             }
         }
     }
@@ -104,8 +104,7 @@ void send_message(JOB_Q* mes_q, int type, int  socket_id, char* text, int text_l
     MESSAGE* new_message = malloc(sizeof(MESSAGE));
     new_message->type      = type;
     new_message->socket_id = socket_id;
-    new_message->text      = malloc(sizeof(char)*text_len);
-    memcpy(new_message->text, text, text_len);
+    new_message->text      = text;
     new_message->text_len  = text_len;
     insert_q(mes_q, (void*) new_message);
 }

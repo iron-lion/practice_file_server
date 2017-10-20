@@ -49,6 +49,7 @@ typedef struct job{
     uint8_t  work;       /* put list get */
     uint8_t  pieces;     /* put */
     uint16_t file_num;   /* get */
+    char     user_id[8];
     int      socket_id;
     BOX*     data_piece; /* put get */
 } JOB;
