@@ -11,7 +11,6 @@ call_python(int argc, char *argv[])
     char* result;
 
     Py_Initialize();
-    printf("running\n");
     exp_file = fopen(addr, "r");
     PyRun_SimpleFile(exp_file, addr);
     pModule = PyImport_AddModule("__main__");
@@ -21,15 +20,13 @@ call_python(int argc, char *argv[])
     pArgs = PyTuple_New(argc);
     for(i=0;i<argc;i++)
         PyTuple_SetItem(pArgs, i, PyString_FromString(argv[i+1]));
-    printf("parsing %s\n",result);
     pResult = PyObject_CallObject(pFunc, pArgs);
-    printf("getting %s\n",result);
 
     if( pResult == NULL ){
         return NULL;
     }
     result = PyString_AsString(pResult);
+    Py_INCREF(pResult);
     fclose(exp_file);
-    printf("stopping %s\n",result);
     return result;
 }

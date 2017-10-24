@@ -11,20 +11,24 @@ def make_filedic():
         block = line.rstrip("\n").split("\t")
         try:
             tmp_set = user_dic[block[0]]
-            tmp_set.add(block[1])
         except KeyError:
-            tmp_set = set([block[1]])
+            tmp_set = set()
+        tmp_set.add((block[1],block[2],))
         user_dic[block[0]] = tmp_set
     FD.close()
+    print user_dic
     return user_dic
 
 
 def exist(user_name, filename):
     user_file_dic = make_filedic()
+#    print "[P] exist:", filename
     try:
         tmp_set = user_file_dic[user_name]
-        if filename in tmp_set:
-            return 1
+        for i in tmp_set:
+#            print "[P]: ",i[0]
+            if filename == i[0]:
+                return str(i[1])
     except KeyError:
         return 0
     return 0
@@ -41,11 +45,13 @@ def write(user_name, filename, pieces):
     return 1
 
 def list(user_name):
-    tmp_stream = "List: \n"
+    tmp_stream = "=====================List==================="
     user_file_dic = make_filedic()
     try:
         tmp_set = user_file_dic[str(user_name)]
-        tmp_stream += "\n".join(tmp_set)
+        for i in tmp_set:
+            tmp_stream += "\n*  " + i[0]
     except KeyError:
-        return tmp_stream
+        tmp_stream += "\nEMPTY"
+    tmp_stream += "\n=====================End===================="
     return tmp_stream

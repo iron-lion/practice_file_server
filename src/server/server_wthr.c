@@ -24,46 +24,52 @@ void* put_process(uint8_t pieces, BOX* data_pieces){
             memcpy(filename,this_box->file_name,128);
         }
         sprintf(str, "%s%s_%s_%d",MIRROR_I,user,filename,i);
-        fp = fopen( str, "wb+");
+        fp = fopen( str, "wb");
         fwrite(this_box, sizeof(BOX), 1, fp);
         fwrite(this_box->data, sizeof(char), this_box->data_len, fp);
         fclose(fp);
     }
     /* META WRITING */
-    printf("%s_%s_%s\n", user, filename, piece);
+    //printf("%s_%s_%s\n", user, filename, piece);
     char* python_arg[4] = {"write",user,filename,piece};
     call_python(3, python_arg);
 }
 
 char* list_process(char* user){
     /* READ meta and give back */
-    printf("LETS MALLOC %s\n",user);
     char* text = malloc(BOX_SIZE * 8);
-    printf("MALLOC DONE %s\n",user);
     char* python_arg[2] = {"list", user};
-
     text = call_python(1, python_arg);
-
-    printf("PYTHON CALL DONE %s\n",user);
     return text;
 }
 
-void* get_process(char* user_id, char* file_name){
-    /*
-    BOX new_boxes[pieces];
-    for(i; i<pieces; i++){
-        BOX new_box = malloc(sizeof(BOX));
+void* get_process(char* user_id, char* file_name, void* mes_q, int socket_id){
+    char* piece = malloc(8);
+    int pieces, i;
+    char* python_arg[3] = {"exist", user_id, file_name};
+    piece = call_python(2, python_arg);
+    pieces = atoi(piece);
+//    printf("[%s]'s %s pieces: %d\n", user_id, file_name, pieces);
+
+    /* send pieces */
+    send_message(mes_q, MESSAGE_TEXT, socket_id, (void*)piece, 8);
+    fflush(stdout);
+    for(i=0; i<pieces; i++){
+        BOX *new_box = malloc(sizeof(BOX));
         FILE *fp;
         char addr[80];
         char* data;
 
-        sprintf(addr, "%s%s_%s%d", MIRROR_I, user_id, file_name, i);
-        fp = fopen( addr, "rb+");
-        fread(new_box, sizeof(BOX), 1 fp);
+        sprintf(addr, "%s%s_%s_%d", MIRROR_I, user_id, file_name, i);
+        fp = fopen( addr, "rb");
+        fread(new_box, sizeof(BOX), 1, fp);
         data = malloc(new_box->data_len);
         fread(data, sizeof(char), new_box->data_len, fp);
         new_box->data = data;
-    }*/
+        send_message(mes_q, MESSAGE_GET, socket_id, (void*)new_box, sizeof(BOX));
+        fflush(stdout);
+        printf("get message ENQ! %s\n",data);
+    }
 }
 
 void* parse_job(JOB* poped_job, void* mes_q){
@@ -77,21 +83,22 @@ void* parse_job(JOB* poped_job, void* mes_q){
     switch(work){
         case JOB_PUT:
             put_process(pieces, data_pieces);
-            remove_job(poped_job);
             text_message = "T";
-            send_message(mes_q, MESSAGE_TEXT, socket_id, text_message, 1);
-            printf("Job-put done message enqd(%d)\n", socket_id);
+            send_message(mes_q, MESSAGE_TEXT, socket_id, (void*)text_message, 1);
+            printf("[W] Job-put done message enqd(%d)\n", socket_id);
             break;
         case JOB_LIST:
             text_message = list_process(user);
-            printf("sending:\n%s\n", text_message);
-            send_message(mes_q, MESSAGE_LIST, socket_id, text_message, BOX_SIZE*8);
-            remove_job(poped_job);
-        case JOB_GET:
-            get_process(user, data_pieces->file_name);
+            send_message(mes_q, MESSAGE_LIST, socket_id, (void*)text_message, BOX_SIZE*8);
+            printf("[W] JOB-list done message enqd(%d)\n", socket_id);
             break;
-        default : printf("ERROR, where the work parse processes\n"); break;
+        case JOB_GET:
+            data_pieces = get_process(user, data_pieces->file_name, mes_q, socket_id);
+            /*make new message job*/
+            break;
+        default : printf("[W] ERROR, where the work parse processes\n"); break;
     }
+    remove_job(poped_job);
 }
 
 
@@ -102,13 +109,13 @@ void* wthr_main(void* job_q){ /*wthr open*/
 
     while(1){
         if (this_job_q->jobs->count == 0){
-            sleep(2);
+            sleep(1);
             continue;
         } else {
             poped_job = pop_q(this_job_q);
-            printf("[JOB] poped!\n");
+            printf("[W] [JOB] poped!\n");
             parse_job(poped_job, mes_q);
-            printf("[JOB] done!\n");
+            printf("[W] [JOB] done!\n");
         }
     }
 }

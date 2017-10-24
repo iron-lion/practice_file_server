@@ -5,9 +5,26 @@
 #include <sys/socket.h>
 #include "job.h"
 void* parse_message(MESSAGE* poped_mes){
-    write(poped_mes->socket_id, poped_mes->text, poped_mes->text_len);
-    fflush(stdout);
-    free(poped_mes);
+    switch(poped_mes->type){
+        case MESSAGE_TEXT:
+            write(poped_mes->socket_id, (char*)(poped_mes->text), poped_mes->text_len);
+            fflush(stdout);
+            break;
+        case MESSAGE_LIST:
+            write(poped_mes->socket_id, (char*)(poped_mes->text), BOX_SIZE*8);
+            fflush(stdout);
+            break;
+        case MESSAGE_GET:
+            write(poped_mes->socket_id, poped_mes->text, poped_mes->text_len);
+            fflush(stdout);
+            write(poped_mes->socket_id, ((BOX*)(poped_mes->text))->data, ((BOX*)(poped_mes->text))->data_len);
+            fflush(stdout);
+            break;
+        default:
+            printf("Wrong message type\n");
+            exit(1);
+        }
+    free((MESSAGE*)poped_mes);
 }
 
 void* ithr_main(void* mes_q){
@@ -20,9 +37,9 @@ void* ithr_main(void* mes_q){
             continue;
         } else {
             poped_mes = pop_q(this_mes_q);
-            printf("\t\t\t\t [MESSAGE] poped!\n");
+            printf("[I] [MESSAGE] poped!\n");
             parse_message((MESSAGE*)poped_mes);
-            printf("\t\t\t\t [MESSAGE] sended!\n");
+            printf("[I] [MESSAGE] sended!\n");
         }
     }
 }

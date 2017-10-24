@@ -8,6 +8,7 @@
 
 #define MIRROR_I "storage1/"
 #define MIRROR_II "storage2/"
+#define DOWNLOAD "download/"
 
 #define MESSAGE_TEXT 1
 #define MESSAGE_LIST 2
@@ -73,4 +74,4 @@ typedef struct message{
     void* text;
 } MESSAGE;
 
-void send_message(JOB_Q* mes_q, int type, int socket_it, char* test, int text_len);
+void send_message(JOB_Q* mes_q, int type, int socket_it, void* test, int text_len);

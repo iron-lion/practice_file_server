@@ -13,11 +13,11 @@
 int WELCOME_INT[FD_SETSIZE];
 int WELCOME_SOCKET;
 void SignalHandler(int signal){
-    int i;
+    int i, j;
     for(i=0;i<FD_SETSIZE;i++)
         if(WELCOME_INT[i] != 0)
-            close(WELCOME_INT[i]);
-    close(WELCOME_SOCKET);
+            shutdown(WELCOME_INT[i], j);
+    shutdown(WELCOME_SOCKET, j);
     printf("\nSIG CLOSING...\n");
     exit(0);
 }
@@ -28,7 +28,7 @@ void printids(){
 
     pid = getpid();
     tid = pthread_self();
-    printf("pid: %lu , tid: %lu(0x%lx)\n", (unsigned long)pid, (unsigned long)tid, (unsigned long)tid);
+    printf("[pid: %lu , tid: %lu(0x%lx)]\n", (unsigned long)pid, (unsigned long)tid, (unsigned long)tid);
 }
 
 void job_lst(char* recv_buffer, int savedSocket, JOB_Q* job_q){
@@ -71,10 +71,10 @@ void job_put(char* recv_buffer, int savedSocket, JOB_Q* job_q ){
         int data_income = recv(savedSocket, data, sizeof(char)*data_box->data_len, 0);
         if(data_income > 0){
             data_box->data = data;
-            printf("<Data received Client[%d] USER[%s] FILE[%s]>\n%s\n.\n",savedSocket, data_box->user_id, data_box->file_name, data_box->data);
+            printf("[C] Data received Client[%d] USER[%s] FILE[%s]\n%s\n.\n",savedSocket, data_box->user_id, data_box->file_name, data_box->data);
             tmp_boxes[i] = *data_box;
         } else {
-            printf("Send message to Client(%d) : %s\n", savedSocket, "F");
+            printf("[C] Send message to Client(%d) : %s\n", savedSocket, "F");
         }
     }
     income_boxes = tmp_boxes;
@@ -127,12 +127,12 @@ void* open_server(){
     while(1){
         /*---- Listen on the socket, with 5 max connection requests queued ----*/
         if(listen(welcomeSocket,5)==0) {
-            printf("Listening\n");
+            printf("[C] Listening\n");
             printids();
             break;
         }
         else
-            printf("Error\n");
+            printf("[C] Error\n");
     }
     WELCOME_SOCKET=welcomeSocket;
     // * fd_set - 소켓관리셋생성
@@ -153,12 +153,12 @@ void* open_server(){
 
     /*- wthr create -*/
     if (wthread_err = pthread_create(&wthr, NULL, wthr_main, (void*)this_job_q) ){
-        perror("w thread create error:");
+        perror("[C] w thread create error:");
         exit(0);
     }
     /*- ithr create -*/
     if (ithread_err = pthread_create(&ithr, NULL, ithr_main, (void*)this_mes_q) ){
-        perror("i thread create error:");
+        perror("[C] i thread create error:");
         exit(0);
     }
 
@@ -177,11 +177,11 @@ void* open_server(){
                 printf("Error - Fail to handshake\n");
                 continue;
             } else {
-                printf("Handshake %d\n",newSocket);
+                printf("[C] Handshake %d\n",newSocket);
             }
             FD_SET(newSocket, &fdSet);
             fd_array[fd_array_max++] = newSocket;
-            puts("accept");
+//            puts("[C] Accept");
             continue;
         }
         *WELCOME_INT = *fd_array;
@@ -204,11 +204,11 @@ void* open_server(){
                         /*GET*/
                         job_get(recv_buffer, savedSocket, this_job_q);
                     } else {
-                        printf("\n<Network Error>\n");
+                        printf("\n[C] Network Error\n");
                         exit(0);
                     }
                 } else {
-                    close(savedSocket);
+                    shutdown(savedSocket,0);
                     //printf("closed %d\n",savedSocket);
                     FD_CLR(savedSocket, &fdSet);
                 }

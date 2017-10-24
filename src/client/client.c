@@ -7,18 +7,18 @@
 #include "job.h"
 
 void prepare_file(char* user_id, char* file_name, int clientSocket){
-    int total_file_len, num_stripe;
-    char read_buffer[1];
-    char put_req_buffer[256];
-    FILE* prep_fd = fopen(file_name, "rb");
-    int i = 0;
-
-    BOX* data_box = malloc(sizeof(BOX));
-    char* data = malloc(BOX_SIZE);
+    int     total_file_len, num_stripe;
+    char    read_buffer[1];
+    char    put_req_buffer[256];
+    FILE*   prep_fd = fopen(file_name, "rb");
+    int     i = 0;
+    BOX*    data_box = malloc(sizeof(BOX));
+    char*   data = malloc(BOX_SIZE);
 
     fseek(prep_fd,0,SEEK_END);
     total_file_len = ftell(prep_fd);
     num_stripe = total_file_len / (BOX_SIZE);
+    (total_file_len % BOX_SIZE) != 0 ? num_stripe++ : num_stripe;
     fseek(prep_fd,0,SEEK_SET);
     /*printf("opened: %d \n", total_file_len);*/
 
@@ -28,8 +28,8 @@ void prepare_file(char* user_id, char* file_name, int clientSocket){
     send(clientSocket, put_req_buffer, 256, 0);
 
     while(i < num_stripe){
-        int data_len = BOX_SIZE;
-        size_t read_len;
+        int     data_len = BOX_SIZE;
+        size_t  read_len;
 
         if (total_file_len - (i + 1) * BOX_SIZE < 0)
             data_len = total_file_len - i * BOX_SIZE;
@@ -43,7 +43,7 @@ void prepare_file(char* user_id, char* file_name, int clientSocket){
         read_len = fread(data, 1, data_len, prep_fd);
         /*printf("read %d %d\n", (int)data_len, (int)read_len);*/
         if(read_len != data_len){
-            printf("err when read %d %d\n", (int)data_len, (int)read_len);
+            printf("[err] when read %d %d\n", (int)data_len, (int)read_len);
             exit(3);
         } else {
             send(clientSocket, data_box , sizeof(BOX), 0);
@@ -52,7 +52,7 @@ void prepare_file(char* user_id, char* file_name, int clientSocket){
         i++;
     }
     recv(clientSocket, read_buffer, 1, 0);
-    printf("%s\n",read_buffer);
+    //printf("%s\n",read_buffer);
     if( memcmp(read_buffer,"T",1)==0){
         printf("[FILE: %s] offset: %d out of %d send success.\n", file_name, i, num_stripe);
     } else if( memcmp(read_buffer,"F",1)==0){
@@ -65,45 +65,78 @@ void prepare_file(char* user_id, char* file_name, int clientSocket){
     fclose(prep_fd);
 }
 
-void prepare_get(char* user_id, int clientSocket){
-    char get_req_buffer[32];
-    char list_buffer[BOX_SIZE * 8];
+void prepare_list(char* user_id, int clientSocket){
+    char    get_req_buffer[32];
+    char    list_buffer[BOX_SIZE * 8];
 
     memcpy(get_req_buffer,"lst: ",5);
     memcpy(get_req_buffer+sizeof(char)*5, user_id, 8);
     send(clientSocket, get_req_buffer, 32, 0);
+    fflush(stdout);
     recv(clientSocket, list_buffer, BOX_SIZE*8,0);
+    fflush(stdin);
     printf("%s\n", list_buffer);
 }
 
 void request_get(char* user_id, char* file_name, int clientSocket){
-    char get_buffer[256];
-    char recv_buffer[256];
-
+    char    get_buffer[256];
+    BOX*    recv_meta = malloc(sizeof(BOX));
+    char*   recv_data = malloc(BOX_SIZE);
     memcpy(get_buffer,"get: ",5);
     memcpy(get_buffer+sizeof(char)*5, user_id, 8);
     memcpy(get_buffer+sizeof(char)*(5+8), file_name, 128);
     /* SEND USERID FILENAME */
     send(clientSocket, get_buffer, 256, 0);
+    fflush(stdout);
     /* GET META INFO */
-    recv(clientSocket, recv_buffer, 256, 0 );
+    int     i, max_piece;
+    char*   max_pieces = malloc(8);
+    recv(clientSocket, max_pieces, 8, 0);
+    fflush(stdin);
+    max_piece = atoi(max_pieces);
 
-    /* META PARSE */
+    uint16_t    offset;
+    uint32_t    data_len;
+    FILE*       write_fp;
+    char        addr[80];
+    printf("max: %d\n",max_piece);
+    for(i=0; i<max_piece; i++){
+        printf("i: %d\n",i);
+        recv(clientSocket, recv_meta, sizeof(BOX), 0 );
+        if (i==0) {
+            /*meta parse*/
+            printf("recieved: %s's %s\n", user_id, file_name);
+            sprintf(addr, "%s%s", DOWNLOAD, file_name);
+            printf("writing to : %s\n",addr);
+            write_fp = fopen(addr, "w+");
+        }
+        offset = recv_meta->file_offset;
+        data_len = recv_meta->data_len;
 
-    /* FOR LOOP WRITING*/
-
+        recv(clientSocket, recv_data, BOX_SIZE, 0 );
+        fflush(stdin);
+        /*file writing*/
+        fseek(write_fp, BOX_SIZE * offset, SEEK_SET);
+        fwrite(recv_data, sizeof(char), data_len, write_fp);
+        printf("recv_data: %s\n",recv_data);
+        fflush(stdout);
+        /*buffer cleaning*/
+        memset(recv_meta,'\0',sizeof(BOX));
+        memset(recv_data,'\0',sizeof(BOX_SIZE));
+    }
+    fclose(write_fp);
+    printf("writing done %s\n",addr);
 }
 
 
 int main(){
-    int clientSocket;
-    char recv_buffer[1024];
-    char send_buffer[1024];
-    struct sockaddr_in serverAddr;
+    int     clientSocket;
+    char    recv_buffer[1024];
+    char    send_buffer[1024];
+    char    user_id[8];
+    char    file_name[128];
+    struct  sockaddr_in serverAddr;
     socklen_t addr_size;
-
-    char user_id[8];
-    char file_name[128];
 
     /*---- Create the socket. The three arguments are:
        1) Internet domain 2) Stream socket 3) Default protocol
@@ -121,29 +154,35 @@ int main(){
     connect(clientSocket, (struct sockaddr *) &serverAddr, addr_size);
 
     printf("user_id: ");
-    scanf(" %9s",user_id);
+    scanf("%9s",user_id);
     fflush(stdin);
 
     char action[3];
     while(1){
+        printf("NEW ACTION: ");
         scanf("%9s",action);
+        fflush(stdin);
         if (strcmp(action,"put")==0){
-            printf("FILE: ");
+            printf("PUT FILE: ");
             scanf("%9s",file_name);
+            fflush(stdin);
+            printf("...... processing\n");
             prepare_file(user_id, file_name, clientSocket);
         } else if (strcmp(action,"list")==0){
-            prepare_get(user_id, clientSocket);
+            printf("...... processing\n");
+            prepare_list(user_id, clientSocket);
         } else if (strcmp(action,"get")==0){
-            printf("FILE: ");
+            printf("GET FILE: ");
             scanf("%9s",file_name);
+            fflush(stdin);
+            printf("...... processing\n");
             request_get(user_id, file_name, clientSocket);
         } else {
-            printf("      UNKNOWN ACTION... %9s\n",action);
+            printf("      UNKNOWN ACTION... %9s\nput , get , list\n",action);
             continue;
         }
-
-        /*---- Read the message from the server into the recv_buffer ----*/
-
+        memset(action,      '\0', 3);
+        memset(file_name,   '\0', 128);
         memset(send_buffer, '\0', 1024);
         memset(recv_buffer, '\0', 1024);
     }

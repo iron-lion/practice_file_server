@@ -100,7 +100,7 @@ void remove_job_q(JOB_Q* job_q){
 }
 
 /* MESSAGE */
-void send_message(JOB_Q* mes_q, int type, int  socket_id, char* text, int text_len){
+void send_message(JOB_Q* mes_q, int type, int  socket_id, void* text, int text_len){
     MESSAGE* new_message = malloc(sizeof(MESSAGE));
     new_message->type      = type;
     new_message->socket_id = socket_id;
